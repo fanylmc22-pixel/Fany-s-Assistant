@@ -1,12 +1,12 @@
 import { motion } from 'motion/react';
 
 interface WaveformProps {
-  isConnected?: boolean;
+  isRecording?: boolean;
   isSpeaking?: boolean;
   micLevel?: number;
 }
 
-export default function Waveform({ isConnected = false, isSpeaking = false, micLevel = 0 }: WaveformProps) {
+export default function Waveform({ isRecording = false, isSpeaking = false, micLevel = 0 }: WaveformProps) {
   const bars = [
     { id: 1, baseHeight: 56, baseClass: 'h-[56px]', color: 'bg-primary/30' },
     { id: 2, baseHeight: 112, baseClass: 'h-[112px]', color: 'bg-primary/50' },
@@ -21,23 +21,23 @@ export default function Waveform({ isConnected = false, isSpeaking = false, micL
   return (
     <div aria-hidden="true" className="relative w-full aspect-square flex items-center justify-center mb-6 waveform-mask max-w-[320px] mx-auto">
       {/* Structural Rings */}
-      <div className={`absolute inset-0 border rounded-full transition-colors duration-500 ${isSpeaking ? 'border-tertiary/20' : isConnected ? 'border-primary/20' : 'border-primary/10'}`}></div>
-      <div className={`absolute inset-10 border rounded-full transition-colors duration-500 ${isSpeaking ? 'border-tertiary/30' : isConnected ? 'border-primary/30' : 'border-primary/20'}`}></div>
+      <div className={`absolute inset-0 border rounded-full transition-colors duration-500 ${isSpeaking ? 'border-tertiary/30' : isRecording ? 'border-primary/30' : 'border-primary/10'}`}></div>
+      <div className={`absolute inset-10 border rounded-full transition-colors duration-500 ${isSpeaking ? 'border-tertiary/40' : isRecording ? 'border-primary/40' : 'border-primary/20'}`}></div>
 
       {/* Tech Pulse Waveform */}
       <div className="relative z-10 w-full h-48 flex items-center justify-center gap-2 px-10">
         {bars.map((bar) => {
-           // If speaking, use tertiary color. If connected and not speaking, react to mic.
+           // If speaking, use tertiary color. If recording and not speaking, react to mic.
            const activeColor = isSpeaking 
                ? bar.color.replace('primary', 'tertiary') 
-               : (isConnected ? bar.color : bar.color.replace('primary', 'primary/20'));
+               : (isRecording ? bar.color : bar.color.replace('primary', 'primary/20'));
            
-           // Calculate dynamic height based on mic level if connected and user is speaking
+           // Calculate dynamic height based on mic level if recording
            // Otherwise use idle animation if just connected, or speaking animation if AI is speaking
            let heights = [bar.baseHeight, bar.baseHeight * 0.4, bar.baseHeight * 1.1, bar.baseHeight];
            let duration = 1.5 + Math.random();
 
-           if (isConnected && !isSpeaking) {
+           if (isRecording && !isSpeaking) {
                // User input mode
                const level = Math.max(0.1, Math.min(1.5, (micLevel + 0.1)));
                heights = [bar.baseHeight * level, bar.baseHeight * level * 0.8];
@@ -48,7 +48,7 @@ export default function Waveform({ isConnected = false, isSpeaking = false, micL
                duration = 0.5 + Math.random() * 0.5;
            } else {
                // Idle Mode
-               heights = [bar.baseHeight * 0.5, bar.baseHeight * 0.2, bar.baseHeight * 0.6, bar.baseHeight * 0.5];
+               heights = [bar.baseHeight * 0.5, bar.baseHeight * 0.3, bar.baseHeight * 0.6, bar.baseHeight * 0.4];
            }
 
           return (
@@ -70,7 +70,7 @@ export default function Waveform({ isConnected = false, isSpeaking = false, micL
       </div>
 
       {/* Subtle Center Core Glow */}
-      <div className={`absolute w-48 h-48 rounded-full blur-[60px] transition-colors duration-1000 ${isSpeaking ? 'bg-tertiary/30' : isConnected ? 'bg-primary/20' : 'bg-primary/10'}`}></div>
+      <div className={`absolute w-48 h-48 rounded-full blur-[60px] transition-colors duration-1000 ${isSpeaking ? 'bg-tertiary/30' : isRecording ? 'bg-primary/20' : 'bg-primary/5'}`}></div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ const OUTPUT_SAMPLE_RATE = 24000;
 export function useLiveAPI() {
   const [isConnected, setIsConnected] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const sessionRef = useRef<any>(null);
@@ -18,6 +19,12 @@ export function useLiveAPI() {
   const nextPlayTimeRef = useRef(0);
   
   const [micLevel, setMicLevel] = useState(0);
+
+  const isRecordingRef = useRef(false);
+
+  useEffect(() => {
+     isRecordingRef.current = isRecording;
+  }, [isRecording]);
 
   const disconnect = useCallback(() => {
     if (sessionRef.current) {
@@ -42,6 +49,7 @@ export function useLiveAPI() {
     }
     setIsConnected(false);
     setIsSpeaking(false);
+    setIsRecording(false);
   }, []);
 
   const connect = useCallback(async () => {
@@ -71,24 +79,17 @@ export function useLiveAPI() {
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
           },
-          systemInstruction: "You are Zahra, an AI assistant for Fany Louis-Mondésir (Marketing Assistant based in Paris). You speak English and French completely bilingual. Be professional and concise. When the conversation starts, introduce yourself exactly with: 'I am Fany’s assistant, how can I help you?' or the French equivalent 'Je suis l'assistante de Fany, comment puis-je vous aider ?'",
+          systemInstruction: "You are Zahra, an AI assistant for Fany Louis-Mondésir (Marketing Assistant based in Paris). You are completely bilingual in English and French. Carefully detect the language of the user's input, and ALWAYS respond in the exact same language they used. If they speak French, reply in French. If they speak English, reply in English. Be professional and concise. When replying for the first time in the conversation, make sure your first sentence introduces yourself as: 'I am Fany\'s assistant, how can I help you?' or the French equivalent 'Je suis l\'assistante de Fany, comment puis-je vous aider ?'",
         },
         callbacks: {
           onopen: () => {
             setIsConnected(true);
-
-            // Trigger the initial greeting
-            sessionPromise.then(session => {
-                session.send({
-                    clientContent: {
-                        turns: [{ role: "user", parts: [{ text: "Hello, please introduce yourself to start the conversation." }] }],
-                        turnComplete: true,
-                    }
-                });
-            }).catch(console.error);
             
             processor.onaudioprocess = (e) => {
-              if (!sessionRef.current) return;
+              if (!sessionRef.current || !isRecordingRef.current) {
+                  setMicLevel(0);
+                  return;
+              }
               const inputData = e.inputBuffer.getChannelData(0);
               
               // Calculate rough mic level for visualizing
@@ -124,42 +125,50 @@ export function useLiveAPI() {
             processor.connect(audioCtx.destination); // Required for Safari/some browsers
           },
           onmessage: async (message: any) => {
-             const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
-             if (base64Audio && outAudioContextRef.current) {
-                setIsSpeaking(true);
-                
-                const binary = atob(base64Audio);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) {
-                    bytes[i] = binary.charCodeAt(i);
-                }
-                const int16Array = new Int16Array(bytes.buffer);
-                const float32Array = new Float32Array(int16Array.length);
-                for(let i=0; i < int16Array.length; i++) {
-                    float32Array[i] = int16Array[i] / 0x8000;
-                }
-                
-                const outCtx = outAudioContextRef.current;
-                const audioBuffer = outCtx.createBuffer(1, float32Array.length, OUTPUT_SAMPLE_RATE);
-                audioBuffer.getChannelData(0).set(float32Array);
-                
-                const playSource = outCtx.createBufferSource();
-                playSource.buffer = audioBuffer;
-                playSource.connect(outCtx.destination);
-                
-                const currentTime = outCtx.currentTime;
-                if (nextPlayTimeRef.current < currentTime) {
-                    nextPlayTimeRef.current = currentTime;
-                }
-                playSource.start(nextPlayTimeRef.current);
-                nextPlayTimeRef.current += audioBuffer.duration;
+             console.log("LiveAPI message:", message);
+             
+             if (message.serverContent?.modelTurn?.parts) {
+                 for (const part of message.serverContent.modelTurn.parts) {
+                     if (part.inlineData && part.inlineData.data) {
+                         const base64Audio = part.inlineData.data;
+                         if (outAudioContextRef.current) {
+                            setIsSpeaking(true);
+                            
+                            const binary = atob(base64Audio);
+                            const bytes = new Uint8Array(binary.length);
+                            for (let i = 0; i < binary.length; i++) {
+                                bytes[i] = binary.charCodeAt(i);
+                            }
+                            const int16Array = new Int16Array(bytes.buffer);
+                            const float32Array = new Float32Array(int16Array.length);
+                            for(let i=0; i < int16Array.length; i++) {
+                                float32Array[i] = int16Array[i] / 0x8000;
+                            }
+                            
+                            const outCtx = outAudioContextRef.current;
+                            const audioBuffer = outCtx.createBuffer(1, float32Array.length, OUTPUT_SAMPLE_RATE);
+                            audioBuffer.getChannelData(0).set(float32Array);
+                            
+                            const playSource = outCtx.createBufferSource();
+                            playSource.buffer = audioBuffer;
+                            playSource.connect(outCtx.destination);
+                            
+                            const currentTime = outCtx.currentTime;
+                            if (nextPlayTimeRef.current < currentTime) {
+                                nextPlayTimeRef.current = currentTime;
+                            }
+                            playSource.start(nextPlayTimeRef.current);
+                            nextPlayTimeRef.current += audioBuffer.duration;
 
-                playSource.onended = () => {
-                    const latestTime = outAudioContextRef.current?.currentTime || 0;
-                    if (latestTime >= nextPlayTimeRef.current - 0.1) {
-                         setIsSpeaking(false);
-                    }
-                }
+                            playSource.onended = () => {
+                                const latestTime = outAudioContextRef.current?.currentTime || 0;
+                                if (latestTime >= nextPlayTimeRef.current - 0.1) {
+                                     setIsSpeaking(false);
+                                }
+                            }
+                         }
+                     }
+                 }
              }
 
              if (message.serverContent?.interrupted) {
@@ -191,11 +200,26 @@ export function useLiveAPI() {
     }
   }, [disconnect]);
 
-  useEffect(() => {
-     return () => {
-         disconnect();
-     }
-  }, [disconnect]);
+  const toggleRecording = useCallback(async () => {
+      if (isRecording) {
+          setIsRecording(false);
+          if (sessionRef.current) {
+              sessionRef.current.sendClientContent({ turnComplete: true });
+          }
+      } else {
+          if (!isConnected) {
+              await connect();
+          }
+          
+          if (outAudioContextRef.current) {
+              outAudioContextRef.current.close().catch(console.error);
+              outAudioContextRef.current = new AudioContext({ sampleRate: OUTPUT_SAMPLE_RATE });
+              nextPlayTimeRef.current = 0;
+          }
+          setIsSpeaking(false);
+          setIsRecording(true);
+      }
+  }, [isRecording, isConnected, connect, isSpeaking]);
 
-  return { connect, disconnect, isConnected, isSpeaking, error, micLevel };
+  return { connect, disconnect, isConnected, isSpeaking, error, micLevel, isRecording, toggleRecording };
 }

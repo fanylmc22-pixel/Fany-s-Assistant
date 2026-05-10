@@ -9,20 +9,16 @@ import MicButton from './components/MicButton';
 import { useLiveAPI } from './hooks/useLiveAPI';
 
 export default function App() {
-  const { connect, disconnect, isConnected, isSpeaking, error, micLevel } = useLiveAPI();
+  const { isConnected, isSpeaking, error, micLevel, isRecording, toggleRecording } = useLiveAPI();
 
   const handleMicClick = () => {
-    if (isConnected) {
-      disconnect();
-    } else {
-      connect();
-    }
+    toggleRecording();
   };
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-background text-slate-100 font-sans selection:bg-primary/20 flex flex-col items-center">
       {/* Ambient Background Lights */}
-      <div className={`fixed top-[-15%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none -z-10 transition-colors duration-1000 ${isConnected ? 'bg-primary/20' : 'bg-primary/10'}`}></div>
+      <div className={`fixed top-[-15%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none -z-10 transition-colors duration-1000 ${isRecording ? 'bg-primary/20' : 'bg-primary/10'}`}></div>
       <div className={`fixed bottom-[-10%] left-[-10%] w-[400px] h-[400px] rounded-full blur-[140px] pointer-events-none -z-10 transition-colors duration-1000 ${isSpeaking ? 'bg-tertiary/20' : 'bg-tertiary/10'}`}></div>
       
       {/* TopAppBar */}
@@ -34,16 +30,16 @@ export default function App() {
 
       {/* Main Content */}
       <main className="pt-24 px-6 pb-6 flex flex-col items-center max-w-md w-full mx-auto min-h-screen relative z-10 flex-1">
-        <Waveform isConnected={isConnected} isSpeaking={isSpeaking} micLevel={micLevel} />
+        <Waveform isRecording={isRecording} isSpeaking={isSpeaking} micLevel={micLevel} />
 
         <div className="text-center space-y-8 w-full mt-4">
           <h2 className="text-slate-300 text-lg font-medium leading-relaxed">
-            I am Zahra's assistant, how can I help you?
+            I am Fany's assistant, how can I help you?
           </h2>
           <ProfileCard />
         </div>
 
-        <MicButton isConnected={isConnected} onClick={handleMicClick} error={error} />
+        <MicButton isRecording={isRecording} isSpeaking={isSpeaking} onClick={handleMicClick} error={error} />
       </main>
     </div>
   );

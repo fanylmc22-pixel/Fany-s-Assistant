@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
-  "requestFramePermissions": [],
+  "name": "Zahra Assistant",
+  "description": "Voice Assistant for Fany Louis-Mondésir",
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": []
 }
