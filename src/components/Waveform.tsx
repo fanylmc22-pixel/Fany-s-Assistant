@@ -1,6 +1,12 @@
 import { motion } from 'motion/react';
 
-export default function Waveform() {
+interface WaveformProps {
+  isConnected?: boolean;
+  isSpeaking?: boolean;
+  micLevel?: number;
+}
+
+export default function Waveform({ isConnected = false, isSpeaking = false, micLevel = 0 }: WaveformProps) {
   const bars = [
     { id: 1, baseHeight: 56, baseClass: 'h-[56px]', color: 'bg-primary/30' },
     { id: 2, baseHeight: 112, baseClass: 'h-[112px]', color: 'bg-primary/50' },
@@ -15,30 +21,56 @@ export default function Waveform() {
   return (
     <div aria-hidden="true" className="relative w-full aspect-square flex items-center justify-center mb-6 waveform-mask max-w-[320px] mx-auto">
       {/* Structural Rings */}
-      <div className="absolute inset-0 border border-primary/10 rounded-full"></div>
-      <div className="absolute inset-10 border border-primary/20 rounded-full"></div>
+      <div className={`absolute inset-0 border rounded-full transition-colors duration-500 ${isSpeaking ? 'border-tertiary/20' : isConnected ? 'border-primary/20' : 'border-primary/10'}`}></div>
+      <div className={`absolute inset-10 border rounded-full transition-colors duration-500 ${isSpeaking ? 'border-tertiary/30' : isConnected ? 'border-primary/30' : 'border-primary/20'}`}></div>
 
       {/* Tech Pulse Waveform */}
       <div className="relative z-10 w-full h-48 flex items-center justify-center gap-2 px-10">
-        {bars.map((bar) => (
-          <motion.div
-            key={bar.id}
-            className={`w-1.5 rounded-full ${bar.color} ${bar.baseClass}`}
-            animate={{
-              height: [bar.baseHeight, bar.baseHeight * 0.4, bar.baseHeight * 1.1, bar.baseHeight]
-            }}
-            transition={{
-              duration: 1.5 + Math.random(),
-              repeat: Infinity,
-              ease: "easeInOut",
-              repeatType: "reverse"
-            }}
-          />
-        ))}
+        {bars.map((bar) => {
+           // If speaking, use tertiary color. If connected and not speaking, react to mic.
+           const activeColor = isSpeaking 
+               ? bar.color.replace('primary', 'tertiary') 
+               : (isConnected ? bar.color : bar.color.replace('primary', 'primary/20'));
+           
+           // Calculate dynamic height based on mic level if connected and user is speaking
+           // Otherwise use idle animation if just connected, or speaking animation if AI is speaking
+           let heights = [bar.baseHeight, bar.baseHeight * 0.4, bar.baseHeight * 1.1, bar.baseHeight];
+           let duration = 1.5 + Math.random();
+
+           if (isConnected && !isSpeaking) {
+               // User input mode
+               const level = Math.max(0.1, Math.min(1.5, (micLevel + 0.1)));
+               heights = [bar.baseHeight * level, bar.baseHeight * level * 0.8];
+               duration = 0.1 + Math.random() * 0.1;
+           } else if (isSpeaking) {
+               // AI speaking mode
+               heights = [bar.baseHeight, bar.baseHeight * 1.4, bar.baseHeight * 0.6, bar.baseHeight];
+               duration = 0.5 + Math.random() * 0.5;
+           } else {
+               // Idle Mode
+               heights = [bar.baseHeight * 0.5, bar.baseHeight * 0.2, bar.baseHeight * 0.6, bar.baseHeight * 0.5];
+           }
+
+          return (
+            <motion.div
+              key={bar.id}
+              className={`w-1.5 rounded-full ${activeColor} ${bar.baseClass} transition-colors duration-300`}
+              animate={{
+                height: heights
+              }}
+              transition={{
+                duration: duration,
+                repeat: Infinity,
+                ease: "easeInOut",
+                repeatType: "reverse"
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* Subtle Center Core Glow */}
-      <div className="absolute w-48 h-48 bg-primary/10 rounded-full blur-[60px]"></div>
+      <div className={`absolute w-48 h-48 rounded-full blur-[60px] transition-colors duration-1000 ${isSpeaking ? 'bg-tertiary/30' : isConnected ? 'bg-primary/20' : 'bg-primary/10'}`}></div>
     </div>
   );
 }
