@@ -52,13 +52,13 @@ export function useLiveAPI() {
     setIsRecording(false);
   }, []);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (providedApiKey?: string) => {
     try {
       setError(null);
       
-      const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      const apiKey = providedApiKey || import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
       if (!apiKey) {
-        throw new Error("An API Key must be set. When hosting outside AI Studio, please provide a VITE_GEMINI_API_KEY environment variable.");
+         throw new Error("API Key is missing. Please provide your Gemini API key.");
       }
       const ai = new GoogleGenAI({ apiKey });
       
@@ -204,7 +204,7 @@ export function useLiveAPI() {
     }
   }, [disconnect]);
 
-  const toggleRecording = useCallback(async () => {
+  const toggleRecording = useCallback(async (providedApiKey?: string) => {
       if (isRecording) {
           setIsRecording(false);
           if (sessionRef.current) {
@@ -212,7 +212,7 @@ export function useLiveAPI() {
           }
       } else {
           if (!isConnected) {
-              await connect();
+              await connect(providedApiKey);
           }
           
           if (outAudioContextRef.current) {

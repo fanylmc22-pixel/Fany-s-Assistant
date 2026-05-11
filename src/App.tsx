@@ -7,12 +7,30 @@ import Waveform from './components/Waveform';
 import ProfileCard from './components/ProfileCard';
 import MicButton from './components/MicButton';
 import { useLiveAPI } from './hooks/useLiveAPI';
+import { useState } from 'react';
 
 export default function App() {
   const { isConnected, isSpeaking, error, micLevel, isRecording, toggleRecording } = useLiveAPI();
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState('');
 
   const handleMicClick = () => {
-    toggleRecording();
+    // If not running in AI Studio, no VITE key is set, and no key is stored, ask for it
+    if (!process.env.GEMINI_API_KEY && !import.meta.env.VITE_GEMINI_API_KEY && !localStorage.getItem('gemini_api_key')) {
+        setShowApiKeyModal(true);
+        return;
+    }
+    
+    const keyToUse = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key') || undefined;
+    toggleRecording(keyToUse);
+  };
+
+  const handleSaveApiKey = () => {
+      if (apiKeyInput.trim()) {
+          localStorage.setItem('gemini_api_key', apiKeyInput.trim());
+          setShowApiKeyModal(false);
+          toggleRecording(apiKeyInput.trim());
+      }
   };
 
   return (
@@ -41,6 +59,37 @@ export default function App() {
 
         <MicButton isRecording={isRecording} isSpeaking={isSpeaking} onClick={handleMicClick} error={error} />
       </main>
+
+      {/* API Key Modal */}
+      {showApiKeyModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="glass-panel p-6 rounded-2xl w-full max-w-sm flex flex-col gap-4 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4">
+                <button onClick={() => setShowApiKeyModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                  &times;
+                </button>
+             </div>
+             <h3 className="text-xl font-medium text-white mb-2">API Key Required</h3>
+             <p className="text-sm text-slate-300 leading-relaxed mb-4">
+               To use Zahra outside of AI Studio, please provide an active Gemini API key. It will be stored safely in your browser.
+             </p>
+             <input 
+                type="password"
+                placeholder="AIza..."
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                className="w-full bg-slate-900/50 border border-slate-700 rounded-lg px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all"
+             />
+             <button 
+                onClick={handleSaveApiKey}
+                disabled={!apiKeyInput.trim()}
+                className="w-full py-3 mt-2 rounded-lg bg-primary/20 text-primary font-medium hover:bg-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+             >
+               Save & Continue
+             </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
