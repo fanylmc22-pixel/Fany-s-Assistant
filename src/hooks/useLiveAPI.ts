@@ -80,6 +80,9 @@ export function useLiveAPI() {
         model: "gemini-3.1-flash-live-preview",
         config: {
           responseModalities: [Modality.AUDIO],
+          realtimeInputConfig: {
+              automaticActivityDetection: { disabled: true }
+          },
           speechConfig: {
             voiceConfig: { prebuiltVoiceConfig: { voiceName: "Aoede" } },
           },
