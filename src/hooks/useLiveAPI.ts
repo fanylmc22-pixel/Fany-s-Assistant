@@ -56,7 +56,11 @@ export function useLiveAPI() {
     try {
       setError(null);
       
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const apiKey = process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("An API Key must be set. When hosting outside AI Studio, please provide a VITE_GEMINI_API_KEY environment variable.");
+      }
+      const ai = new GoogleGenAI({ apiKey });
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
